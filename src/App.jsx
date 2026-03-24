@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 // import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
-
+import { supabase } from "./supabase";
 // ─── CONSTANTS ────────────────────────────────────────────
 const TASKS = [
   { key: "wake", pts: 10, label: "Woke up on time", icon: "⏰", color: "#e94560" },
@@ -124,30 +124,36 @@ const schedules = {
 // ─── STORAGE LAYER ────────────────────────────────────────
 const storage = {
   async get(key) {
-    try {
-      const value = localStorage.getItem(key);
-      return value ? JSON.parse(value) : null;
-    } catch {
-      return null;
-    }
+    const { data, error } = await supabase
+      .from("logs")
+      .select("*")
+      .eq("date", key)
+      .single();
+
+    if (error) return null;
+    return data?.data || null;
   },
+
   async set(key, val) {
-    try {
-      localStorage.setItem(key, JSON.stringify(val));
-      return true;
-    } catch {
-      return false;
-    }
+    const { error } = await supabase
+      .from("logs")
+      .upsert({
+        date: key,
+        data: val
+      });
+
+    return !error;
   },
+
   async listKeys(prefix) {
-    try {
-      return Object.keys(localStorage).filter(k => k.startsWith(prefix));
-    } catch {
-      return [];
-    }
+    const { data, error } = await supabase
+      .from("logs")
+      .select("date");
+
+    if (error) return [];
+    return data.map(d => prefix + d.date);
   }
 };
-
 // ─── MAIN COMPONENT ──────────────────────────────────────
 export default function App() {
   const [view, setView] = useState("today");
